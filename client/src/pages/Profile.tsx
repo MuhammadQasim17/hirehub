@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import api from '../api/axios';
@@ -29,11 +29,13 @@ export const Profile: React.FC = () => {
   const [resumeUrl, setResumeUrl] = useState(user?.resumeUrl || '');
   const [createdAt, setCreatedAt] = useState<string | undefined>(user?.createdAt);
 
-  const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(() => Boolean(isAuthenticated));
+  const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(() => !user && Boolean(isAuthenticated));
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showResumeHelp, setShowResumeHelp] = useState(false);
+
+  const hasFetchedRef = useRef(false);
 
   // Authentication protection
   useEffect(() => {
@@ -42,8 +44,11 @@ export const Profile: React.FC = () => {
     }
   }, [authLoading, isAuthenticated, navigate]);
 
-  // Fetch current user's profile from backend on mount
+  // Fetch current user's profile from backend once on initial mount
   useEffect(() => {
+    if (!isAuthenticated || hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
+
     let active = true;
 
     const fetchProfile = async () => {
@@ -69,9 +74,7 @@ export const Profile: React.FC = () => {
       }
     };
 
-    if (isAuthenticated) {
-      void fetchProfile();
-    }
+    void fetchProfile();
 
     return () => {
       active = false;
@@ -80,6 +83,8 @@ export const Profile: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
+
     setSuccessMessage(null);
     setErrorMessage(null);
 
@@ -107,13 +112,16 @@ export const Profile: React.FC = () => {
 
       const response = await api.put<User>('/profile/me', payload);
 
-      // Instantly synchronize with AuthContext and localStorage
+      // Instantly synchronize with AuthContext directly without triggering a separate GET request
       updateUser(response.data);
 
       setSuccessMessage('Profile saved successfully! Your details are now updated across HireHub.');
       setTimeout(() => {
         setSuccessMessage(null);
       }, 4000);
+
+      // Add a tiny artificial delay before ending the state to allow React DOM commits to settle smoothly
+      await new Promise((r) => setTimeout(r, 400));
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         setErrorMessage(
@@ -424,16 +432,16 @@ export const Profile: React.FC = () => {
               <button
                 type="submit"
                 disabled={isSaving}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-md shadow-indigo-100 hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                className="inline-flex items-center justify-center min-w-[145px] gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-md shadow-indigo-100 hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
               >
                 {isSaving ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Saving Changes...</span>
+                    <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                    <span>Saving...</span>
                   </>
                 ) : (
                   <>
-                    <Save className="w-4 h-4" />
+                    <Save className="w-4 h-4 shrink-0" />
                     <span>Save Profile</span>
                   </>
                 )}

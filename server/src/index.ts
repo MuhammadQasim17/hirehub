@@ -6,6 +6,7 @@ import authRouter from './routes/auth';
 import jobsRouter from './routes/jobs';
 import applicationsRouter from './routes/applications';
 import profileRouter from './routes/profile';
+import supportRouter from './routes/support';
 
 dotenv.config();
 
@@ -52,6 +53,7 @@ app.use('/api/jobs', jobsRouter);
 app.use('/api', applicationsRouter);
 app.use('/api/applications', applicationsRouter);
 app.use('/api/profile', profileRouter);
+app.use('/api/support', supportRouter);
 
 // Root fallback health route
 app.get('/', (_req: Request, res: Response) => {

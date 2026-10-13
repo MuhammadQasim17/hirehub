@@ -26,6 +26,12 @@ enum ApplicationStatus {
   REJECTED
 }
 
+enum JobStatus {
+  ACTIVE
+  CLOSED
+  EXPIRED
+}
+
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
@@ -46,15 +52,17 @@ model User {
 }
 
 model Job {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   title       String
   company     String
   location    String
-  type        JobType  @default(FULL_TIME)
+  type        JobType   @default(FULL_TIME)
   description String
   salary      String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  deadline    DateTime?
+  status      JobStatus @default(ACTIVE)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   recruiterId String
   recruiter   User   @relation("RecruiterJobs", fields: [recruiterId], references: [id], onDelete: Cascade)

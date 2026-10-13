@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { ApplicationStatus } from '@prisma/client';
 import prisma from '../prisma';
 import { authenticateToken, requireRole } from '../middleware/auth';
+import { sendApplicationStatusEmail } from '../utils/email';
 
 const router = Router();
 
@@ -254,6 +255,19 @@ router.patch(
           },
         },
       });
+
+      // Trigger candidate notification email asynchronously
+      if (['REVIEWED', 'ACCEPTED', 'REJECTED'].includes(status)) {
+        void sendApplicationStatusEmail(
+          updatedApplication.candidate.email,
+          updatedApplication.candidate.name,
+          updatedApplication.job.title,
+          updatedApplication.job.company,
+          status as 'REVIEWED' | 'ACCEPTED' | 'REJECTED'
+        ).catch((err) => {
+          console.error('Failed to dispatch status email:', err);
+        });
+      }
 
       res.json({
         ...updatedApplication,

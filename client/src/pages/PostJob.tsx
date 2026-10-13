@@ -14,6 +14,7 @@ import {
   Loader2,
   ArrowLeft,
   CheckCircle2,
+  Calendar,
 } from 'lucide-react';
 
 export const PostJob: React.FC = () => {
@@ -25,11 +26,14 @@ export const PostJob: React.FC = () => {
   const [location, setLocation] = useState('');
   const [type, setType] = useState<JobType>('FULL_TIME');
   const [salary, setSalary] = useState('');
+  const [deadline, setDeadline] = useState('');
   const [description, setDescription] = useState('');
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const today = new Date().toISOString().split('T')[0];
 
   // Guard page for Authenticated Recruiters
   useEffect(() => {
@@ -81,6 +85,7 @@ export const PostJob: React.FC = () => {
         location: location.trim(),
         type,
         salary: salary.trim() || undefined,
+        deadline: deadline ? new Date(deadline).toISOString() : undefined,
         description: description.trim(),
       };
 
@@ -276,26 +281,55 @@ export const PostJob: React.FC = () => {
               </div>
             </div>
 
-            {/* Salary */}
-            <div>
-              <label
-                htmlFor="salary"
-                className="block text-sm font-semibold text-slate-700 mb-1.5"
-              >
-                Salary / Compensation (Optional)
-              </label>
-              <div className="relative rounded-lg shadow-2xs">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                  <DollarSign className="h-4 w-4" />
+            {/* Salary & Application Deadline Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {/* Salary */}
+              <div>
+                <label
+                  htmlFor="salary"
+                  className="block text-sm font-semibold text-slate-700 mb-1.5"
+                >
+                  Salary / Compensation (Optional)
+                </label>
+                <div className="relative rounded-lg shadow-2xs">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <DollarSign className="h-4 w-4" />
+                  </div>
+                  <input
+                    id="salary"
+                    type="text"
+                    value={salary}
+                    onChange={(e) => setSalary(e.target.value)}
+                    placeholder="e.g. $130,000 - $160,000 / yr"
+                    className="block w-full pl-10 pr-4 py-2.5 text-slate-900 bg-white border border-gray-300 rounded-lg text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                  />
                 </div>
-                <input
-                  id="salary"
-                  type="text"
-                  value={salary}
-                  onChange={(e) => setSalary(e.target.value)}
-                  placeholder="e.g. $130,000 - $160,000 / yr"
-                  className="block w-full pl-10 pr-4 py-2.5 text-slate-900 bg-white border border-gray-300 rounded-lg text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                />
+              </div>
+
+              {/* Application Deadline */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label
+                    htmlFor="deadline"
+                    className="block text-sm font-semibold text-slate-700"
+                  >
+                    Application Deadline (Optional)
+                  </label>
+                  <span className="text-[11px] text-slate-400">Closes on date</span>
+                </div>
+                <div className="relative rounded-lg shadow-2xs">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Calendar className="h-4 w-4" />
+                  </div>
+                  <input
+                    id="deadline"
+                    type="date"
+                    min={today}
+                    value={deadline}
+                    onChange={(e) => setDeadline(e.target.value)}
+                    className="block w-full pl-10 pr-4 py-2.5 text-slate-900 bg-white border border-gray-300 rounded-lg text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                  />
+                </div>
               </div>
             </div>
 

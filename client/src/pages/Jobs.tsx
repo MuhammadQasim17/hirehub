@@ -21,6 +21,7 @@ import {
   Loader2,
   Send,
   ShieldAlert,
+  Calendar,
 } from 'lucide-react';
 
 export const Jobs: React.FC = () => {
@@ -50,6 +51,9 @@ export const Jobs: React.FC = () => {
 
   // Trigger counter for manual reload / retry
   const [reloadKey, setReloadKey] = useState(0);
+
+  // Snapshot time on mount for deterministic deadline comparisons during render
+  const [currentTime] = useState(() => Date.now());
 
   // Fetch candidate's existing applications to mark applied jobs
   useEffect(() => {
@@ -242,6 +246,29 @@ export const Jobs: React.FC = () => {
         return 'bg-purple-50 text-purple-700 border-purple-200';
       default:
         return 'bg-gray-100 text-gray-700 border-gray-200';
+    }
+  };
+
+  const isJobExpiredOrClosed = (job: Job): boolean => {
+    if (job.status === 'CLOSED') return true;
+    if (job.deadline) {
+      const deadlineDate = new Date(job.deadline);
+      return !isNaN(deadlineDate.getTime()) && deadlineDate.getTime() < currentTime;
+    }
+    return false;
+  };
+
+  const formatDeadline = (deadlineStr?: string | null): string | null => {
+    if (!deadlineStr) return null;
+    try {
+      const d = new Date(deadlineStr);
+      if (isNaN(d.getTime())) return null;
+      return d.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch {
+      return null;
     }
   };
 
@@ -498,6 +525,20 @@ export const Jobs: React.FC = () => {
                             Applied
                           </span>
                         )}
+                        {job.status === 'CLOSED' ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
+                            Closed
+                          </span>
+                        ) : isJobExpiredOrClosed(job) ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
+                            Expired
+                          </span>
+                        ) : job.deadline ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
+                            <Calendar className="w-3 h-3 text-indigo-600" />
+                            Closes {formatDeadline(job.deadline)}
+                          </span>
+                        ) : null}
                       </div>
                     </div>
 
@@ -554,6 +595,25 @@ export const Jobs: React.FC = () => {
                             {selectedJob.salary}
                           </span>
                         )}
+                        {selectedJob.deadline && (
+                          <span
+                            className={`flex items-center gap-1 font-semibold px-2.5 py-0.5 rounded-full text-xs border ${
+                              isJobExpiredOrClosed(selectedJob)
+                                ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                            }`}
+                          >
+                            <Calendar className="w-3.5 h-3.5" />
+                            {isJobExpiredOrClosed(selectedJob)
+                              ? 'Deadline Passed'
+                              : `Closes ${formatDeadline(selectedJob.deadline)}`}
+                          </span>
+                        )}
+                        {selectedJob.status === 'CLOSED' && (
+                          <span className="text-xs font-bold px-2.5 py-0.5 rounded-full border bg-rose-50 text-rose-700 border-rose-200">
+                            Closed
+                          </span>
+                        )}
                         <span className="flex items-center gap-1 text-xs text-slate-400">
                           <Clock className="w-3.5 h-3.5" />
                           Posted {formatRelativeTime(selectedJob.createdAt)}
@@ -574,6 +634,19 @@ export const Jobs: React.FC = () => {
                           </button>
                           <div className="absolute right-0 top-full mt-1.5 hidden group-hover:block bg-slate-900 text-white text-xs rounded-lg px-3 py-1.5 whitespace-nowrap shadow-lg z-20">
                             Recruiters cannot apply to jobs
+                          </div>
+                        </div>
+                      ) : isJobExpiredOrClosed(selectedJob) ? (
+                        <div className="relative group">
+                          <button
+                            type="button"
+                            disabled
+                            className="px-6 py-2.5 rounded-xl font-bold text-slate-400 bg-gray-100 border border-gray-200 cursor-not-allowed text-sm"
+                          >
+                            {selectedJob.status === 'CLOSED' ? 'Listing Closed' : 'Deadline Passed'}
+                          </button>
+                          <div className="absolute right-0 top-full mt-1.5 hidden group-hover:block bg-slate-900 text-white text-xs rounded-lg px-3 py-1.5 whitespace-nowrap shadow-lg z-20">
+                            This opening is no longer accepting applications
                           </div>
                         </div>
                       ) : appliedJobIds.has(selectedJob.id) ? (
@@ -630,16 +703,18 @@ export const Jobs: React.FC = () => {
                     <span className="text-xs text-slate-500">
                       Job ID: <span className="font-mono text-slate-700">{selectedJob.id}</span>
                     </span>
-                    {!appliedJobIds.has(selectedJob.id) && user?.role !== 'RECRUITER' && (
-                      <button
-                        type="button"
-                        onClick={() => handleOpenApplyModal(selectedJob)}
-                        className="inline-flex items-center gap-1.5 text-sm font-semibold text-indigo-600 hover:text-indigo-800 cursor-pointer"
-                      >
-                        <span>Submit your application</span>
-                        <ExternalLink className="w-4 h-4" />
-                      </button>
-                    )}
+                    {!appliedJobIds.has(selectedJob.id) &&
+                      !isJobExpiredOrClosed(selectedJob) &&
+                      user?.role !== 'RECRUITER' && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenApplyModal(selectedJob)}
+                          className="inline-flex items-center gap-1.5 text-sm font-semibold text-indigo-600 hover:text-indigo-800 cursor-pointer"
+                        >
+                          <span>Submit your application</span>
+                          <ExternalLink className="w-4 h-4" />
+                        </button>
+                      )}
                   </div>
                 </div>
               ) : (
@@ -681,6 +756,25 @@ export const Jobs: React.FC = () => {
                       {selectedJob.salary}
                     </span>
                   )}
+                  {selectedJob.deadline && (
+                    <span
+                      className={`font-semibold px-2 py-0.5 rounded-full border text-xs flex items-center gap-1 ${
+                        isJobExpiredOrClosed(selectedJob)
+                          ? 'bg-rose-50 text-rose-700 border-rose-200'
+                          : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                      }`}
+                    >
+                      <Calendar className="w-3 h-3" />
+                      {isJobExpiredOrClosed(selectedJob)
+                        ? 'Deadline Passed'
+                        : `Closes ${formatDeadline(selectedJob.deadline)}`}
+                    </span>
+                  )}
+                  {selectedJob.status === 'CLOSED' && (
+                    <span className="font-bold px-2 py-0.5 rounded-full border text-xs bg-rose-50 text-rose-700 border-rose-200">
+                      Closed
+                    </span>
+                  )}
                 </div>
               </div>
               <button
@@ -715,6 +809,10 @@ export const Jobs: React.FC = () => {
               {user?.role === 'RECRUITER' ? (
                 <div className="flex-1 py-3 text-center text-xs text-slate-500 bg-gray-100 rounded-xl font-medium">
                   Recruiters cannot apply
+                </div>
+              ) : isJobExpiredOrClosed(selectedJob) ? (
+                <div className="flex-1 py-3 text-center text-xs text-slate-400 bg-gray-100 rounded-xl font-bold">
+                  {selectedJob.status === 'CLOSED' ? 'Listing Closed' : 'Deadline Expired'}
                 </div>
               ) : appliedJobIds.has(selectedJob.id) ? (
                 <div className="flex-1 py-3 text-center rounded-xl font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 text-sm flex items-center justify-center gap-1.5">

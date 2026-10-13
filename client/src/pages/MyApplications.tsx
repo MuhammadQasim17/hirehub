@@ -15,6 +15,8 @@ import {
   ChevronDown,
   ChevronUp,
   ArrowRight,
+  Mail,
+  ShieldCheck,
 } from 'lucide-react';
 
 export const MyApplications: React.FC = () => {
@@ -169,6 +171,36 @@ export const MyApplications: React.FC = () => {
             </button>
           </div>
         )}
+
+        {/* Official Notifications Trust Notice */}
+        <div className="mb-6 rounded-2xl bg-gradient-to-r from-indigo-50 via-sky-50 to-indigo-50 border border-indigo-100/80 p-4 sm:p-5 shadow-xs">
+          <div className="flex items-start gap-3.5">
+            <div className="p-2 rounded-xl bg-indigo-600 text-white shrink-0 mt-0.5 shadow-xs">
+              <Mail className="w-5 h-5" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-sm font-semibold text-slate-900">
+                  Official Status Notifications
+                </h2>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  Verified System Dispatch
+                </span>
+              </div>
+              <p className="mt-1 text-xs sm:text-sm text-slate-600 leading-relaxed">
+                Application decisions (Reviewed, Accepted, or Rejected) are sent directly to your email inbox from{' '}
+                <a
+                  href="mailto:chirehub@gmail.com"
+                  className="font-mono font-medium text-indigo-600 hover:text-indigo-700 bg-white/80 px-1.5 py-0.5 rounded border border-indigo-200/60 inline-block transition-colors"
+                >
+                  chirehub@gmail.com
+                </a>
+                . Please ensure our address is added to your contacts or marked as safe so you never miss an interview update.
+              </p>
+            </div>
+          </div>
+        </div>
 
         {/* Loading Skeletons */}
         {isLoading && (

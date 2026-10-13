@@ -4,6 +4,7 @@ import axios from 'axios';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import type { RecruiterJobWithApplications, ApplicationStatus, Application } from '../types/application';
+import type { JobStatus } from '../types/job';
 import {
   Briefcase,
   Users,
@@ -31,6 +32,7 @@ export const RecruiterDashboard: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [expandedNotes, setExpandedNotes] = useState<Record<string, boolean>>({});
   const [updatingAppId, setUpdatingAppId] = useState<string | null>(null);
+  const [updatingJobId, setUpdatingJobId] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
   // Guard page: Recruiter only
@@ -114,6 +116,31 @@ export const RecruiterDashboard: React.FC = () => {
       }
     } finally {
       setUpdatingAppId(null);
+    }
+  };
+
+  const handleToggleJobStatus = async (jobId: string, newStatus: JobStatus) => {
+    const previousJobs = [...jobs];
+
+    // Optimistically update
+    setJobs((prevJobs) =>
+      prevJobs.map((job) => (job.id === jobId ? { ...job, status: newStatus } : job))
+    );
+
+    setUpdatingJobId(jobId);
+    try {
+      await api.patch(`/jobs/${jobId}/status`, { status: newStatus });
+    } catch (err: unknown) {
+      setJobs(previousJobs);
+      if (axios.isAxiosError(err)) {
+        setErrorMessage(
+          err.response?.data?.error || 'Failed to update job status. Reverted.'
+        );
+      } else {
+        setErrorMessage('Failed to update job status.');
+      }
+    } finally {
+      setUpdatingJobId(null);
     }
   };
 
@@ -319,6 +346,7 @@ export const RecruiterDashboard: React.FC = () => {
 
                 {jobs.map((job) => {
                   const isSelected = selectedJobId === job.id;
+                  const isClosed = job.status === 'CLOSED';
                   return (
                     <button
                       key={job.id}
@@ -330,6 +358,12 @@ export const RecruiterDashboard: React.FC = () => {
                           : 'bg-white text-slate-700 border border-gray-200 hover:bg-gray-100'
                       }`}
                     >
+                      <span
+                        className={`w-2 h-2 rounded-full shrink-0 ${
+                          isClosed ? 'bg-rose-400' : 'bg-emerald-400'
+                        }`}
+                        title={isClosed ? 'Listing Closed' : 'Listing Active'}
+                      />
                       <span className="max-w-[160px] truncate">{job.title}</span>
                       <span
                         className={`px-1.5 py-0.5 rounded-full text-[10px] ${
@@ -345,6 +379,131 @@ export const RecruiterDashboard: React.FC = () => {
                 })}
               </div>
             </div>
+
+            {/* Active Job Action & Toggle Banner for Specific Selected Job */}
+            {selectedJobId !== 'ALL' && (() => {
+              const currentJob = jobs.find((j) => j.id === selectedJobId);
+              if (!currentJob) return null;
+              const isClosed = currentJob.status === 'CLOSED';
+
+              return (
+                <div className="px-5 sm:px-6 py-3.5 bg-slate-50 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                      Opening Status:
+                    </span>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+                        isClosed
+                          ? 'bg-rose-50 text-rose-700 border-rose-200'
+                          : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      }`}
+                    >
+                      {isClosed ? 'CLOSED' : 'ACTIVE'}
+                    </span>
+                    {currentJob.deadline && (
+                      <span className="text-xs text-slate-500 flex items-center gap-1 font-medium">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                        Deadline: {formatDate(currentJob.deadline)}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={updatingJobId === currentJob.id}
+                      onClick={() =>
+                        handleToggleJobStatus(currentJob.id, isClosed ? 'ACTIVE' : 'CLOSED')
+                      }
+                      className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                        isClosed
+                          ? 'bg-emerald-600 text-white hover:bg-emerald-700 border-emerald-600 shadow-2xs'
+                          : 'bg-white text-rose-700 hover:bg-rose-50 border-rose-200 shadow-2xs'
+                      }`}
+                    >
+                      {updatingJobId === currentJob.id
+                        ? 'Updating Status...'
+                        : isClosed
+                        ? 'Reopen Job Opening'
+                        : 'Close Job Opening'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Overview: Posted Jobs Management Grid with Toggle Buttons when viewing All */}
+            {selectedJobId === 'ALL' && (
+              <div className="p-4 sm:p-6 bg-slate-50/40 border-b border-gray-100">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Posted Job Openings ({jobs.length})
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    Toggle opening status to Close or Reopen applications
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {jobs.map((job) => {
+                    const isClosed = job.status === 'CLOSED';
+                    return (
+                      <div
+                        key={job.id}
+                        className="p-3.5 rounded-xl border border-gray-200 bg-white shadow-2xs flex flex-col justify-between gap-3"
+                      >
+                        <div>
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="text-sm font-bold text-slate-900 truncate">
+                              {job.title}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${
+                                isClosed
+                                  ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              }`}
+                            >
+                              {isClosed ? 'CLOSED' : 'ACTIVE'}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-x-2 text-xs text-slate-500 mt-1">
+                            <span>{job.company}</span>
+                            {job.deadline && (
+                              <span>• Closes {formatDate(job.deadline)}</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-gray-100 text-xs">
+                          <span className="text-slate-500 font-medium">
+                            {job.applications.length} {job.applications.length === 1 ? 'applicant' : 'applicants'}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={updatingJobId === job.id}
+                            onClick={() =>
+                              handleToggleJobStatus(job.id, isClosed ? 'ACTIVE' : 'CLOSED')
+                            }
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
+                              isClosed
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                                : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50'
+                            }`}
+                          >
+                            {updatingJobId === job.id
+                              ? 'Updating...'
+                              : isClosed
+                              ? 'Reopen Job'
+                              : 'Close Job'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Applicants List / Table */}
             {displayedApplications.length === 0 ? (
@@ -408,6 +567,27 @@ export const RecruiterDashboard: React.FC = () => {
 
                         {/* Actions & Status Dropdown */}
                         <div className="flex flex-wrap items-center gap-3">
+                          {/* Manual Email Candidate (Gmail compose / mailto) Button */}
+                          {app.candidate?.email && (
+                            <a
+                              href={`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
+                                app.candidate.email
+                              )}&su=${encodeURIComponent(
+                                `Regarding your application for ${app.jobTitle || 'our open position'} at ${
+                                  app.jobCompany || 'HireHub'
+                                }`
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white hover:bg-gray-50 border border-gray-200 transition-colors shadow-2xs hover:border-gray-300 cursor-pointer"
+                              title={`Direct email to ${app.candidate.name || 'candidate'} via Gmail / Mail Client`}
+                            >
+                              <Mail className="w-3.5 h-3.5 text-indigo-600" />
+                              <span>Email Candidate</span>
+                              <ExternalLink className="w-3 h-3 ml-0.5 text-slate-400" />
+                            </a>
+                          )}
+
                           {/* Resume Link Button */}
                           <a
                             href={app.resumeUrl}
