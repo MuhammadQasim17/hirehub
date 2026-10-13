@@ -505,6 +505,16 @@ export const RecruiterDashboard: React.FC = () => {
               </div>
             )}
 
+            {/* Candidate Applications Section Header */}
+            <div className="px-4 sm:px-6 py-4 bg-slate-50/60 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                CANDIDATE APPLICATIONS ({displayedApplications.length})
+              </span>
+              <span className="text-xs text-slate-400">
+                Review candidates and update pipeline status
+              </span>
+            </div>
+
             {/* Applicants List / Table */}
             {displayedApplications.length === 0 ? (
               <div className="p-12 text-center text-slate-500">
