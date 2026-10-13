@@ -256,20 +256,23 @@ router.patch(
         },
       });
 
-      // Trigger candidate notification email asynchronously
+      // Await candidate notification email dispatch before sending response (prevents Vercel serverless freeze)
       if (['REVIEWED', 'ACCEPTED', 'REJECTED'].includes(status)) {
-        void sendApplicationStatusEmail(
-          updatedApplication.candidate.email,
-          updatedApplication.candidate.name,
-          updatedApplication.job.title,
-          updatedApplication.job.company,
-          status as 'REVIEWED' | 'ACCEPTED' | 'REJECTED'
-        ).catch((err) => {
-          console.error('Failed to dispatch status email:', err);
-        });
+        try {
+          await sendApplicationStatusEmail(
+            updatedApplication.candidate.email,
+            updatedApplication.candidate.name,
+            updatedApplication.job.title,
+            updatedApplication.job.company,
+            status as 'REVIEWED' | 'ACCEPTED' | 'REJECTED'
+          );
+        } catch (emailError) {
+          console.error('[STATUS EMAIL ERROR] Failed to dispatch candidate status email:', emailError);
+          // Graceful handling: logs error without failing the HTTP response or interrupting status update
+        }
       }
 
-      res.json({
+      res.status(200).json({
         ...updatedApplication,
         coverNote: updatedApplication.notes,
       });
